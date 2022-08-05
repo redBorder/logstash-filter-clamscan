@@ -24,7 +24,7 @@ Need help? Try sending us an email to support@redborder.com
 rvm install jruby-9.2.6.0
 ```
 
-- Clone from the GitHub [logstash-filter-scores](https://github.com/redBorder/logstash-filter-scores)
+- Clone from the GitHub [logstash-filter-clamscan](https://github.com/redBorder/logstash-filter-clamscan)
 
 - Install dependencies
 ```sh
@@ -51,7 +51,7 @@ bundle exec rspec
 
 - Build your plugin gem
 ```sh
-gem build logstash-filter-metascan.gemspec
+gem build logstash-filter-clamscan.gemspec
 ```
 - Install the plugin from the Logstash home
 ```sh
