@@ -1,0 +1,103 @@
+:plugin: example
+:type: filter
+
+///////////////////////////////////////////
+START - GENERATED VARIABLES, DO NOT EDIT!
+///////////////////////////////////////////
+:version: %VERSION%
+:release_date: %RELEASE_DATE%
+:changelog_url: %CHANGELOG_URL%
+:include_path: ../../../../logstash/docs/include
+///////////////////////////////////////////
+END - GENERATED VARIABLES, DO NOT EDIT!
+///////////////////////////////////////////
+
+[id="plugins-{type}s-{plugin}"]
+
+== logstash-filter-metascan
+
+=== Example filter plugin
+
+[,logstash]
+----
+filter{
+  metascan {
+    clamscan_bin => '/usr/bin/clamscan'
+    file_field => '[path]'
+    weight => 1.0
+    target => 'clamscan'
+    score_name => 'fb_clamscan'
+    latency_name => 'clamscan_latency'
+  }
+}
+----
+
+=== Description
+
+This is an example of Logstash filter plugin for ClamAV. This filter returns a JSON with the result provided by ClamAV and a score about how potentially dangerous is the file.
+
+http://www.clamav.net/
+
+[id="plugins-{type}s-{plugin}-options"]
+==== Filter Configuration Options
+
+[cols="<,<,<",options="header",]
+|=======================================================================
+|Setting |Input type|Required
+| <<plugins-{type}s-{plugin}-clamscan_bin>> |String|No
+| <<plugins-{type}s-{plugin}-file_field>> |String|No
+| <<plugins-{type}s-{plugin}-weight>> |Float|No
+| <<plugins-{type}s-{plugin}-target>> |String|No
+| <<plugins-{type}s-{plugin}-score_name>> |String|No
+| <<plugins-{type}s-{plugin}-latency_name>> |String|No
+|=======================================================================
+
+[id="plugins-{type}s-{plugin}-clamscan_bin"]
+===== `clamscan_bin`
+
+* Value type is `String`.
+* Default value is `"/usr/bin/clamscan"`
+
+Path where Clamscan binary is located.
+
+[id="plugins-{type}s-{plugin}-file_field"]
+===== `file_field`
+
+* Value type is `String`.
+* Default value is `"[path]"`
+
+Logstash event field (key) where the file to be analyzed is located.
+
+[id="plugins-{type}s-{plugin}-weight"]
+===== `weight`
+
+* Value type is `Float`.
+* Default value is `1.0`
+
+Malware score is 100 if Clamscan tag the file as a virus. If not, score is 0.
+
+[id="plugins-{type}s-{plugin}-target"]
+===== `target`
+
+* Value type is `String`.
+* Default value is `"metascan"`
+
+Logstash event field (key) where the JSON is going to be located.
+
+[id="plugins-{type}s-{plugin}-score_name"]
+===== `score_name`
+
+* Value type is `String`.
+* Default value is `"fb_metascan"`
+
+Logstash event field (key) where the score is going to be located.
+
+[id="plugins-{type}s-{plugin}-latency_name"]
+===== `latency_name`
+
+* Value type is `String`.
+* Default value is `"metascan_latency"`
+
+Logstash event field (key) where the latency is going to be located.
+
+[id="plugins-{type}s-{plugin}-common-options"]
