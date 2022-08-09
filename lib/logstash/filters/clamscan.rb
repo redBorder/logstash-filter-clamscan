@@ -30,13 +30,17 @@ class LogStash::Filters::Clamscan < LogStash::Filters::Base
   private
 
   def get_clamscan_info
+    clamscan_info = {}
+    score = -1
 
     unless File.exist?(@clamscan_bin)
-      return [{"Error" => "Clamscan binary is not in #{@clamscan_bin}."},0]
+      @logger.error("Clamscan binary is not in #{@clamscan_bin}.")
+      return [clamscan_info,score]
     end
 
     unless File.exist?(@file_path)
-      return [{"Error" => "File #{@file_path} does not exist."},0]
+      @logger.error("File #{@file_path} does not exist.")
+      return [clamscan_info,score]
     end
 
     clamscan_info = `#{@clamscan_bin} #{@file_path}`
