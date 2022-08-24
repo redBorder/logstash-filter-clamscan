@@ -49,7 +49,7 @@ class LogStash::Filters::Clamscan < LogStash::Filters::Base
 
     fields = fields.map{ |f| f.split(/: /)  }
 
-    score = fields[6][1] == "1" ? 100 * @weight : 0
+    score = fields[6][1] == "1" ? (100 * @weight).round : 0
 
     clamscan_json = {
       #Virus Family
