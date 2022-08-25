@@ -9,17 +9,19 @@ class LogStash::Filters::Clamscan < LogStash::Filters::Base
   config_name "clamscan"
 
   # Clamscan binary path
-  config :clamscan_bin,      :validate => :string,  :default => "/usr/bin/clamscan"
+  config :clamscan_bin,           :validate => :string,  :default => "/usr/bin/clamscan"
+  # Clamscan database path
+  config :database,               :validate => :string,  :default => "/var/lib/clamav/daily.cld"
   # File that is going to be analyzed
-  config :file_field,        :validate => :string,  :default => "[path]"
+  config :file_field,             :validate => :string,  :default => "[path]"
   # Loader weight
-  config :weight, :default => 1.0
+  config :weight,                                        :default => 1.0
   # Where you want the data to be placed
-  config :target, :validate => :string, :default => "clamscan"
+  config :target,                 :validate => :string,  :default => "clamscan"
   # Where you want the score to be placed
-  config :score_name, :validate => :string, :default => "fb_clamscan"
+  config :score_name,             :validate => :string,  :default => "fb_clamscan"
   # Where you want the latency to be placed
-  config :latency_name, :validate => :string, :default => "clamscan_latency"
+  config :latency_name,           :validate => :string,  :default => "clamscan_latency"
 
 
   public
@@ -35,6 +37,11 @@ class LogStash::Filters::Clamscan < LogStash::Filters::Base
 
     unless File.exist?(@clamscan_bin)
       @logger.error("Clamscan binary is not in #{@clamscan_bin}.")
+      return [clamscan_info,score]
+    end
+
+    unless check_database
+      @logger.error("Clamscan database is older than 7 days. It must be updated.")
       return [clamscan_info,score]
     end
 
@@ -65,6 +72,16 @@ class LogStash::Filters::Clamscan < LogStash::Filters::Base
   [clamscan_json, score]
   end
 
+  #Clamscan database cannot be older than 7 days
+  def check_database
+    begin
+      database_time = File::Stat.new(@database).ctime
+    rescue Errno::ENOENT => ex
+      @logger.error(ex.message)
+      return false
+    end
+    (database_time - Time.now) < 604800
+  end
 
   public
   def filter(event)

@@ -14,15 +14,16 @@ END - GENERATED VARIABLES, DO NOT EDIT!
 
 [id="plugins-{type}s-{plugin}"]
 
-== logstash-filter-metascan
+== logstash-filter-clamscan
 
 === Example filter plugin
 
 [,logstash]
 ----
 filter{
-  metascan {
+  clamscan {
     clamscan_bin => '/usr/bin/clamscan'
+    database => '/var/lib/clamav/daily.cld'
     file_field => '[path]'
     weight => 1.0
     target => 'clamscan'
@@ -45,6 +46,7 @@ http://www.clamav.net/
 |=======================================================================
 |Setting |Input type|Required
 | <<plugins-{type}s-{plugin}-clamscan_bin>> |String|No
+| <<plugins-{type}s-{plugin}-database>> |String|No
 | <<plugins-{type}s-{plugin}-file_field>> |String|No
 | <<plugins-{type}s-{plugin}-weight>> |Float|No
 | <<plugins-{type}s-{plugin}-target>> |String|No
@@ -59,6 +61,14 @@ http://www.clamav.net/
 * Default value is `"/usr/bin/clamscan"`
 
 Path where Clamscan binary is located.
+
+[id="plugins-{type}s-{plugin}-database"]
+===== `database`
+
+* Value type is `String`.
+* Default value is `"/var/lib/clamav/daily.cld"`
+
+Clamscan database path to check whether it is valid or not.
 
 [id="plugins-{type}s-{plugin}-file_field"]
 ===== `file_field`
@@ -80,7 +90,7 @@ Malware score is 100 if Clamscan tag the file as a virus. If not, score is 0.
 ===== `target`
 
 * Value type is `String`.
-* Default value is `"metascan"`
+* Default value is `"clamscan"`
 
 Logstash event field (key) where the JSON is going to be located.
 
@@ -88,7 +98,7 @@ Logstash event field (key) where the JSON is going to be located.
 ===== `score_name`
 
 * Value type is `String`.
-* Default value is `"fb_metascan"`
+* Default value is `"fb_clamscan"`
 
 Logstash event field (key) where the score is going to be located.
 
@@ -96,7 +106,7 @@ Logstash event field (key) where the score is going to be located.
 ===== `latency_name`
 
 * Value type is `String`.
-* Default value is `"metascan_latency"`
+* Default value is `"clamscan_latency"`
 
 Logstash event field (key) where the latency is going to be located.
 
