@@ -6,7 +6,7 @@ require 'json'
 require 'aerospike'
 
 require_relative "util/aerospike_config"
-require_relative "util/aerospike_methods"
+require_relative "util/aerospike_manager"
 
 class LogStash::Filters::Clamscan < LogStash::Filters::Base
 
