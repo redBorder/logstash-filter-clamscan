@@ -17,7 +17,7 @@ class LogStash::Filters::Clamscan < LogStash::Filters::Base
   # Clamscan binary path
   config :clamscan_bin,                     :validate => :string,           :default => "/usr/bin/clamscan"
   # Clamscan database path
-  config :database,                         :validate => :string,           :default => "/var/lib/clamav/daily.cld"
+  config :database_dir,                     :validate => :string,           :default => "/var/lib/clamav"
   # File that is going to be analyzed
   config :file_field,                       :validate => :string,           :default => "[path]"
   # Where you want the data to be placed
@@ -60,17 +60,12 @@ class LogStash::Filters::Clamscan < LogStash::Filters::Base
       return [clamscan_info,score]
     end
 
-    unless check_database
-      @logger.error("Clamscan database is older than 7 days. It must be updated.")
-      return [clamscan_info,score]
-    end
-
     unless File.exist?(@file_path)
       @logger.error("File #{@file_path} does not exist.")
       return [clamscan_info,score]
     end
 
-    clamscan_info = `#{@clamscan_bin} #{@file_path}`
+    clamscan_info = `#{@clamscan_bin} -d #{@database_dir} #{@file_path}`
 
     fields = clamscan_info.split(/\n+/)
 
@@ -90,17 +85,6 @@ class LogStash::Filters::Clamscan < LogStash::Filters::Base
     }
 
   [clamscan_json, score]
-  end
-
-  #Clamscan database cannot be older than 7 days
-  def check_database
-    begin
-      database_time = File::Stat.new(@database).ctime
-    rescue Errno::ENOENT => ex
-      @logger.error(ex.message)
-      return false
-    end
-    (database_time - Time.now) < 604800
   end
 
   public
