@@ -17,7 +17,7 @@ class LogStash::Filters::Clamscan < LogStash::Filters::Base
   # Clamscan binary path
   config :clamscan_bin,                     :validate => :string,           :default => "/usr/bin/clamscan"
   # Clamscan database path
-  config :database,                         :validate => :string,           :default => "/var/lib/clamav/daily.cld"
+  config :database_dir,                     :validate => :string,           :default => "/var/lib/clamav"
   # File that is going to be analyzed
   config :file_field,                       :validate => :string,           :default => "[path]"
   # Where you want the data to be placed
@@ -60,53 +60,36 @@ class LogStash::Filters::Clamscan < LogStash::Filters::Base
       return [clamscan_info,score]
     end
 
-    unless check_database
-      @logger.error("Clamscan database is older than 7 days. It must be updated.")
-      return [clamscan_info,score]
-    end
-
     unless File.exist?(@file_path)
       @logger.error("File #{@file_path} does not exist.")
       return [clamscan_info,score]
     end
 
-    clamscan_info = `#{@clamscan_bin} #{@file_path}`
+    command = "nice -n 19 ionice -c2 -n7 #{@clamscan_bin} -i --stdout -d #{@database_dir} #{@file_path}"
+    result = `#{command}`
 
-    fields = clamscan_info.split(/\n+/)
-
-    fields = fields.map{ |f| f.split(/: /)  }
-
-    score = fields[6][1] == "1" ? 100 : 0
+    clamscan_info = {}
+    result.split(/\n+/).each{|e| e.include?":" and clamscan_info[e.split(":").first.strip] = e.split(":").last.strip }
+    score = clamscan_info["Infected files"].to_i != 0 ? 100 : 0  rescue score = 0
+    virus_family = score == 0 ? "Unknown" : clamscan_info[@file_path].split.first rescue virus_family = "Unknown"
 
     clamscan_json = {
-      #Virus Family
-      "Virus Family" => score == 0 ? "Unknown" : fields[0][1].split(/ /, 2).first, #Get only family name. Example raw family: "Win.Trojan.Hzzv-7433640-0 FOUND"
-      #Known viruses
-      fields[2][0] => fields[2][1],
-      #Engine version
-      fields[3][0] => fields[3][1],
-      #Data scanned
-      fields[7][0] => fields[7][1],
+      "Virus Family" => virus_family, 
+      "Know viruses" => clamscan_info["Known viruses"],
+      "Engine version" => clamscan_info["Engine version"],
+      "Data scanned" => clamscan_info["Data scanned"]
     }
 
   [clamscan_json, score]
-  end
-
-  #Clamscan database cannot be older than 7 days
-  def check_database
-    begin
-      database_time = File::Stat.new(@database).ctime
-    rescue Errno::ENOENT => ex
-      @logger.error(ex.message)
-      return false
-    end
-    (database_time - Time.now) < 604800
   end
 
   public
   def filter(event)
 
     @file_path = event.get(@file_field)
+
+    puts "[clamscan] processing #{@file_path}"
+
     begin
       @hash = Digest::SHA2.new(256).hexdigest File.read @file_path
     rescue Errno::ENOENT => ex
