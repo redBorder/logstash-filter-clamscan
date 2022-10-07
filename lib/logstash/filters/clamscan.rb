@@ -3,14 +3,8 @@ require "logstash/filters/base"
 require "logstash/namespace"
 
 require 'json'
-require 'aerospike'
-
-require_relative "util/aerospike_config"
-require_relative "util/aerospike_manager"
 
 class LogStash::Filters::Clamscan < LogStash::Filters::Base
-
-  include Aerospike
 
   config_name "clamscan"
 
@@ -26,27 +20,12 @@ class LogStash::Filters::Clamscan < LogStash::Filters::Base
   config :score_name,                       :validate => :string,           :default => "fb_clamscan"
   # Where you want the latency to be placed
   config :latency_name,                     :validate => :string,           :default => "clamscan_latency"
-  #Aerospike server in the form "host:port"
-  config :aerospike_server,                 :validate => :string,           :default => ""
-  #Namespace is a Database name in Aerospike
-  config :aerospike_namespace,              :validate => :string,           :default => "malware"
-  #Set in Aerospike is similar to table in a relational database.
-  # Where are scores stored
-  config :aerospike_set,                    :validate => :string,           :default => "hashScores"
 
 
   public
   def register
     # Add instance variables
-    begin
-      @aerospike_server = AerospikeConfig::servers if @aerospike_server.empty?
-      @aerospike_server = @aerospike_server[0] if @aerospike_server.class.to_s == "Array"
-      host,port = @aerospike_server.split(":")
-      @aerospike = Client.new(Host.new(host, port))
 
-    rescue Aerospike::Exceptions::Aerospike => ex
-      @logger.error(ex.message)
-    end
   end # def register
 
   private
@@ -87,13 +66,17 @@ class LogStash::Filters::Clamscan < LogStash::Filters::Base
   def filter(event)
 
     @file_path = event.get(@file_field)
+    @logger.info("[#{@target}] processing #{@file_path}")
 
-    puts "[clamscan] processing #{@file_path}"
+    @hash = event.get('sha256')
 
-    begin
-      @hash = Digest::SHA2.new(256).hexdigest File.read @file_path
-    rescue Errno::ENOENT => ex
-      @logger.error(ex.message)
+    if @hash.nil?
+      begin
+        @hash = Digest::SHA2.new(256).hexdigest File.read @file_path
+        event.set('sha256', @hash)
+      rescue Errno::ENOENT => ex
+        @logger.error(ex.message)
+      end
     end
 
     starting_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
@@ -106,7 +89,6 @@ class LogStash::Filters::Clamscan < LogStash::Filters::Base
     event.set(@target, clamscan_result)
     event.set(@score_name, score)
 
-    AerospikeManager::update_malware_hash_score(@aerospike, @aerospike_namespace, @aerospike_set, @hash, @score_name, score, "fb")
 
     # filter_matched should go in the last line of our successful code
     filter_matched(event)

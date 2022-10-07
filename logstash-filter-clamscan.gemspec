@@ -20,6 +20,5 @@ Gem::Specification.new do |s|
   # Gem dependencies
   s.add_runtime_dependency "logstash-core-plugin-api", "~> 2.0"
   s.add_runtime_dependency 'json',                      "1.8.6"
-  s.add_runtime_dependency 'aerospike',                 "2.5.1"
   s.add_development_dependency 'logstash-devutils',     "2.4.0"
 end
