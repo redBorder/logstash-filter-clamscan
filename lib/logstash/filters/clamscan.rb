@@ -9,7 +9,7 @@ class LogStash::Filters::Clamscan < LogStash::Filters::Base
   config_name "clamscan"
 
   # Clamscan binary path
-  config :clamscan_bin,                     :validate => :string,           :default => "/usr/bin/clamscan"
+  config :clamdscan_bin,                     :validate => :string,           :default => "/usr/local/bin/clamdscan"
   # Clamscan database path
   config :database_dir,                     :validate => :string,           :default => "/var/lib/clamav"
   # File that is going to be analyzed
@@ -34,8 +34,8 @@ class LogStash::Filters::Clamscan < LogStash::Filters::Base
     clamscan_info = {}
     score = -1
 
-    unless File.exist?(@clamscan_bin)
-      @logger.error("Clamscan binary is not in #{@clamscan_bin}.")
+    unless File.exist?(@clamdscan_bin)
+      @logger.error("Clamdscan binary is not in #{@clamdscan_bin}.")
       return [clamscan_info,score]
     end
 
@@ -44,19 +44,23 @@ class LogStash::Filters::Clamscan < LogStash::Filters::Base
       return [clamscan_info,score]
     end
 
-    command = "nice -n 19 ionice -c2 -n7 #{@clamscan_bin} -i --stdout -d #{@database_dir} #{@file_path}"
+    command = "#{@clamdscan_bin} --no-summary --infected #{@file_path} 2>&1"
     result = `#{command}`
 
-    clamscan_info = {}
-    result.split(/\n+/).each{|e| e.include?":" and clamscan_info[e.split(":").first.strip] = e.split(":").last.strip }
-    score = clamscan_info["Infected files"].to_i != 0 ? 100 : 0  rescue score = 0
-    virus_family = score == 0 ? "Unknown" : clamscan_info[@file_path].split.first rescue virus_family = "Unknown"
+    virus_family = "Unknown"
+
+    if result.empty?
+      score = 0
+    elsif result.include? "ERROR:"
+      @logger.error(result)
+      score = -1
+    else
+      score = 100
+      virus_family = result.split(" ")[1]
+    end
 
     clamscan_json = {
-      "Virus Family" => virus_family, 
-      "Know viruses" => clamscan_info["Known viruses"],
-      "Engine version" => clamscan_info["Engine version"],
-      "Data scanned" => clamscan_info["Data scanned"]
+      "Virus Family" => virus_family
     }
 
   [clamscan_json, score]
