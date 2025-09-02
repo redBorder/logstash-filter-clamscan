@@ -42,7 +42,7 @@ class LogStash::Filters::Clamscan < LogStash::Filters::Base
     end
 
     starting_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-    clamscan_result, score = get_clamscan_info()
+    clamscan_result, score = get_clamscan_info(file_path)
 
     ending_time  = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     elapsed_time = (ending_time - starting_time).round(1)
@@ -63,12 +63,12 @@ class LogStash::Filters::Clamscan < LogStash::Filters::Base
 
     unless File.exist?(@clamdscan_bin)
       @logger.error("Clamdscan binary is not in #{@clamdscan_bin}.")
-      return [clamscan_info,score]
+      return [clamscan_info, score]
     end
 
     unless File.exist?(file_path)
       @logger.error("File #{file_path} does not exist.")
-      return [clamscan_info,score]
+      return [clamscan_info, score]
     end
 
     command = "#{@clamdscan_bin} --no-summary --infected #{file_path} 2>&1"
