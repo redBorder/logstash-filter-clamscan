@@ -5,11 +5,10 @@ require "logstash/namespace"
 require 'json'
 
 class LogStash::Filters::Clamscan < LogStash::Filters::Base
-
   config_name "clamscan"
 
   # Clamscan binary path
-  config :clamdscan_bin,                     :validate => :string,           :default => "/usr/local/bin/clamdscan"
+  config :clamdscan_bin,                    :validate => :string,           :default => "/usr/bin/clamdscan"
   # Clamscan database path
   config :database_dir,                     :validate => :string,           :default => "/var/lib/clamav"
   # File that is going to be analyzed
@@ -21,30 +20,58 @@ class LogStash::Filters::Clamscan < LogStash::Filters::Base
   # Where you want the latency to be placed
   config :latency_name,                     :validate => :string,           :default => "clamscan_latency"
 
-
   public
+
   def register
     # Add instance variables
+  end
 
-  end # def register
+  def filter(event)
+    file_path = event.get(@file_field)
+    @logger.info("[#{@target}] processing #{file_path}")
+
+    hash = event.get('sha256')
+
+    if hash.nil?
+      begin
+        hash = Digest::SHA2.new(256).hexdigest File.read file_path
+        event.set('sha256', hash)
+      rescue Errno::ENOENT => e
+        @logger.error(e.message)
+      end
+    end
+
+    starting_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    clamscan_result, score = get_clamscan_info(file_path)
+
+    ending_time  = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    elapsed_time = (ending_time - starting_time).round(1)
+
+    event.set(@latency_name, elapsed_time)
+    event.set(@target, clamscan_result)
+    event.set(@score_name, score)
+
+    # filter_matched should go in the last line of our successful code
+    filter_matched(event)
+  end
 
   private
 
-  def get_clamscan_info
+  def get_clamscan_info(file_path)
     clamscan_info = {}
     score = -1
 
     unless File.exist?(@clamdscan_bin)
       @logger.error("Clamdscan binary is not in #{@clamdscan_bin}.")
-      return [clamscan_info,score]
+      return [clamscan_info, score]
     end
 
-    unless File.exist?(@file_path)
-      @logger.error("File #{@file_path} does not exist.")
-      return [clamscan_info,score]
+    unless File.exist?(file_path)
+      @logger.error("File #{file_path} does not exist.")
+      return [clamscan_info, score]
     end
 
-    command = "#{@clamdscan_bin} --no-summary --infected #{@file_path} 2>&1"
+    command = "#{@clamdscan_bin} --no-summary --infected #{file_path} 2>&1"
     result = `#{command}`
 
     virus_family = "Unknown"
@@ -65,37 +92,4 @@ class LogStash::Filters::Clamscan < LogStash::Filters::Base
 
   [clamscan_json, score]
   end
-
-  public
-  def filter(event)
-
-    @file_path = event.get(@file_field)
-    @logger.info("[#{@target}] processing #{@file_path}")
-
-    @hash = event.get('sha256')
-
-    if @hash.nil?
-      begin
-        @hash = Digest::SHA2.new(256).hexdigest File.read @file_path
-        event.set('sha256', @hash)
-      rescue Errno::ENOENT => ex
-        @logger.error(ex.message)
-      end
-    end
-
-    starting_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-    clamscan_result,score = get_clamscan_info
-
-    ending_time  = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-    elapsed_time = (ending_time - starting_time).round(1)
-
-    event.set(@latency_name, elapsed_time)
-    event.set(@target, clamscan_result)
-    event.set(@score_name, score)
-
-
-    # filter_matched should go in the last line of our successful code
-    filter_matched(event)
-
-  end  # def filter(event)
 end # class LogStash::Filters::Clamscan
